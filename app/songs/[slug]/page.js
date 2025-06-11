@@ -26,7 +26,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
 import LoadingSpinner from "@/components/loading-spinner";
-import Image from "next/image";
+import SpotifyPlayer from "@/components/spotify-player";
 
 export default function SongPage({ params }) {
   // Properly unwrap the params Promise
@@ -118,7 +118,7 @@ export default function SongPage({ params }) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Player Section */}
             <div className="space-y-6">
-              <SongPlayer song={song} />
+              {song.spotifyId ? <SpotifyPlayer song={song} /> : <SongPlayer song={song} />}
 
               {/* Album Art */}
               <Card className="jazz-card-light dark:jazz-card-dark border-amber-200/50 dark:border-amber-800/30">

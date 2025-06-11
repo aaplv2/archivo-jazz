@@ -5,6 +5,7 @@ import { Music2 } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import LoadingSpinner from "@/components/loading-spinner";
 import Link from "next/link";
+import SpotifyLoginButton from "@/components/spotify-login-button";
 
 export default function HomePage() {
   const { songs, loading, error } = useSongs();
@@ -98,7 +99,9 @@ export default function HomePage() {
       <header className="bg-white/80 dark:bg-stone-900/80 backdrop-blur-sm border-b border-amber-200/50 dark:border-amber-800/30">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-between">
-            <div className="flex-1" />
+            <div className="flex-1 flex justify-start">
+              <SpotifyLoginButton />
+            </div>
             <div className="flex items-center space-x-3">
               <Music2 className="w-8 h-8 text-amber-600 dark:text-amber-400" />
               <h1 className="text-4xl font-bold text-gray-900 dark:text-amber-100">
