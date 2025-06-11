@@ -53,6 +53,29 @@ const nextConfig = {
       },
     ],
   },
+  // Add CSP headers for production
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.scdn.co https://accounts.spotify.com",
+              "connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://ws.audioscrobbler.com https://musicbrainz.org",
+              "img-src 'self' data: blob: https: http:",
+              "media-src 'self' https: blob:",
+              "style-src 'self' 'unsafe-inline'",
+              "font-src 'self' data:",
+              "frame-src 'self' https://accounts.spotify.com",
+            ].join("; "),
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

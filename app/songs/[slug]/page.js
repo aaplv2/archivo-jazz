@@ -27,6 +27,7 @@ import { notFound } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
 import LoadingSpinner from "@/components/loading-spinner";
 import SpotifyPlayer from "@/components/spotify-player";
+import SpotifyPlayerImproved from "@/components/spotify-player-improved";
 
 export default function SongPage({ params }) {
   // Properly unwrap the params Promise
@@ -94,6 +95,11 @@ export default function SongPage({ params }) {
                     Preview Available
                   </Badge>
                 )}
+              {song.spotifyId && (
+                <Badge variant="default" className="bg-[#1DB954] text-white">
+                  Spotify Available
+                </Badge>
+              )}
             </div>
 
             {/* Enhanced stats */}
@@ -118,7 +124,11 @@ export default function SongPage({ params }) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Player Section */}
             <div className="space-y-6">
-              {song.spotifyId ? <SpotifyPlayer song={song} /> : <SongPlayer song={song} />}
+              {song.spotifyId ? (
+                <SpotifyPlayerImproved song={song} />
+              ) : (
+                <SongPlayer song={song} />
+              )}
 
               {/* Album Art */}
               <Card className="jazz-card-light dark:jazz-card-dark border-amber-200/50 dark:border-amber-800/30">
