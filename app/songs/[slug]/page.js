@@ -1,5 +1,9 @@
-import { getSongBySlug, getAllSongs } from "@/lib/songs-data";
+"use client";
+
+import { use } from "react";
+import { useSong } from "@/app/hooks/use-songs";
 import SongPlayer from "@/components/song-player";
+import SafeImage from "@/components/safe-image";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -9,23 +13,35 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, User, Disc, FileText } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar,
+  User,
+  Disc,
+  FileText,
+  Users,
+  Tag,
+} from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
+import LoadingSpinner from "@/components/loading-spinner";
+import Image from "next/image";
 
-export async function generateStaticParams() {
-  const songs = getAllSongs();
-  return songs.map((song) => ({
-    slug: song.id,
-  }));
-}
+export default function SongPage({ params }) {
+  // Properly unwrap the params Promise
+  const { slug } = use(params);
+  const { song, loading, error } = useSong(slug);
 
-export default async function SongPage({ params }) {
-  const { slug } = await params;
-  const song = getSongBySlug(slug);
+  if (loading) {
+    return (
+      <div className="min-h-screen jazz-bg-light dark:jazz-bg-dark transition-colors duration-300">
+        <LoadingSpinner message="Loading song details..." />
+      </div>
+    );
+  }
 
-  if (!song) {
+  if (error || !song) {
     notFound();
   }
 
@@ -59,7 +75,7 @@ export default async function SongPage({ params }) {
             <p className="text-xl text-gray-600 dark:text-gray-400 mb-4">
               {song.composer}
             </p>
-            <div className="flex justify-center space-x-2">
+            <div className="flex justify-center space-x-2 mb-4">
               <Badge
                 variant="default"
                 className="bg-amber-600 dark:bg-amber-700 text-white"
@@ -72,7 +88,31 @@ export default async function SongPage({ params }) {
               >
                 {song.decade}
               </Badge>
+              {song.previewUrl &&
+                song.previewUrl !== "/placeholder-audio.mp3" && (
+                  <Badge variant="default" className="bg-green-600 text-white">
+                    Preview Available
+                  </Badge>
+                )}
             </div>
+
+            {/* Enhanced stats */}
+            {(song.listeners || song.playcount) && (
+              <div className="flex justify-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+                {song.listeners && (
+                  <div className="flex items-center">
+                    <Users className="w-4 h-4 mr-1" />
+                    {Number.parseInt(song.listeners).toLocaleString()} listeners
+                  </div>
+                )}
+                {song.playcount && (
+                  <div className="flex items-center">
+                    <Disc className="w-4 h-4 mr-1" />
+                    {Number.parseInt(song.playcount).toLocaleString()} plays
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -80,17 +120,16 @@ export default async function SongPage({ params }) {
             <div className="space-y-6">
               <SongPlayer song={song} />
 
-              {/* Album Art Placeholder */}
+              {/* Album Art */}
               <Card className="jazz-card-light dark:jazz-card-dark border-amber-200/50 dark:border-amber-800/30">
                 <CardContent className="p-6">
-                  <div className="aspect-square bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 rounded-lg flex items-center justify-center">
-                    <div className="text-center">
-                      <Disc className="w-16 h-16 text-amber-600 dark:text-amber-400 mx-auto mb-2" />
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Album Artwork
-                      </p>
-                    </div>
-                  </div>
+                  <SafeImage
+                    src={song.albumArt}
+                    alt={`${song.title} album art`}
+                    width={400}
+                    height={400}
+                    className="aspect-square"
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -133,8 +172,47 @@ export default async function SongPage({ params }) {
                       {song.album}
                     </span>
                   </div>
+                  {song.duration && (
+                    <div className="flex items-center">
+                      <FileText className="w-4 h-4 mr-2 text-muted-foreground" />
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        Duration:
+                      </span>
+                      <span className="ml-2 text-gray-700 dark:text-gray-300">
+                        {Math.floor(song.duration / 60000)}:
+                        {((song.duration % 60000) / 1000)
+                          .toFixed(0)
+                          .padStart(2, "0")}
+                      </span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
+
+              {/* Tags */}
+              {song.tags && song.tags.length > 0 && (
+                <Card className="jazz-card-light dark:jazz-card-dark border-amber-200/50 dark:border-amber-800/30">
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-gray-900 dark:text-amber-100">
+                      <Tag className="w-5 h-5 mr-2" />
+                      Music Tags
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {song.tags.map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant="secondary"
+                          className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Description */}
               <Card className="jazz-card-light dark:jazz-card-dark border-amber-200/50 dark:border-amber-800/30">
@@ -149,6 +227,22 @@ export default async function SongPage({ params }) {
                   </p>
                 </CardContent>
               </Card>
+
+              {/* Artist Bio */}
+              {song.artistBio && (
+                <Card className="jazz-card-light dark:jazz-card-dark border-amber-200/50 dark:border-amber-800/30">
+                  <CardHeader>
+                    <CardTitle className="text-gray-900 dark:text-amber-100">
+                      About the Artist
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                      {song.artistBio}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Era Context */}
               <Card className="jazz-card-light dark:jazz-card-dark border-amber-200/50 dark:border-amber-800/30">
