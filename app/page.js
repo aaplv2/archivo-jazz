@@ -6,6 +6,7 @@ import ThemeToggle from "@/components/theme-toggle";
 import LoadingSpinner from "@/components/loading-spinner";
 import Link from "next/link";
 import SpotifyLoginButton from "@/components/spotify-login-button";
+import SpotifyDebug from "@/components/spotify-debug";
 
 export default function HomePage() {
   const { songs, loading, error } = useSongs();
@@ -100,7 +101,10 @@ export default function HomePage() {
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-between">
             <div className="flex-1 flex justify-start">
-              <SpotifyLoginButton />
+              <div>
+                <SpotifyLoginButton />
+                <SpotifyDebug />
+              </div>
             </div>
             <div className="flex items-center space-x-3">
               <Music2 className="w-8 h-8 text-amber-600 dark:text-amber-400" />

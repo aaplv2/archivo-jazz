@@ -26,7 +26,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
 import LoadingSpinner from "@/components/loading-spinner";
-import SpotifyPlayer from "@/components/spotify-player";
 import SpotifyPlayerImproved from "@/components/spotify-player-improved";
 
 export default function SongPage({ params }) {
