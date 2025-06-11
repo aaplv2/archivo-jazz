@@ -74,7 +74,7 @@ export default function SongPlayer({ song }) {
   const progress = duration ? (currentTime / duration) * 100 : 0;
 
   return (
-    <Card className="w-full">
+    <Card className="w-full jazz-card-light dark:jazz-card-dark border-amber-200/50 dark:border-amber-800/30">
       <CardContent className="p-6">
         <audio
           ref={audioRef}
@@ -85,8 +85,12 @@ export default function SongPlayer({ song }) {
         <div className="space-y-4">
           {/* Song Info */}
           <div className="text-center">
-            <h3 className="font-semibold text-lg">{song.title}</h3>
-            <p className="text-muted-foreground">{song.composer}</p>
+            <h3 className="font-semibold text-lg text-gray-900 dark:text-amber-100">
+              {song.title}
+            </h3>
+            <p className="text-muted-foreground dark:text-gray-400">
+              {song.composer}
+            </p>
           </div>
 
           {/* Progress Bar */}
@@ -98,7 +102,7 @@ export default function SongPlayer({ song }) {
               step={1}
               className="w-full"
             />
-            <div className="flex justify-between text-sm text-muted-foreground">
+            <div className="flex justify-between text-sm text-muted-foreground dark:text-gray-400">
               <span>{formatTime(currentTime)}</span>
               <span>{formatTime(duration)}</span>
             </div>
@@ -110,7 +114,7 @@ export default function SongPlayer({ song }) {
               variant="outline"
               size="icon"
               onClick={togglePlay}
-              className="h-12 w-12"
+              className="h-12 w-12 border-amber-600 dark:border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20"
             >
               {isPlaying ? (
                 <Pause className="h-6 w-6" />
@@ -126,7 +130,7 @@ export default function SongPlayer({ song }) {
               variant="ghost"
               size="icon"
               onClick={toggleMute}
-              className="h-8 w-8"
+              className="h-8 w-8 text-gray-600 dark:text-gray-400"
             >
               {isMuted || volume === 0 ? (
                 <VolumeX className="h-4 w-4" />
