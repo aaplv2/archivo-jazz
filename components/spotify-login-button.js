@@ -16,12 +16,21 @@ export default function SpotifyLoginButton() {
     }
   }, []);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const loginUrl = spotifyAuth.getLoginUrl();
+      // Check if crypto.subtle is available (required for PKCE)
+      if (!window.crypto || !window.crypto.subtle) {
+        setError(
+          "Your browser doesn't support the required security features. Please use a modern browser."
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      const loginUrl = await spotifyAuth.getLoginUrl();
 
       if (!loginUrl) {
         setError(
@@ -31,7 +40,7 @@ export default function SpotifyLoginButton() {
         return;
       }
 
-      console.log("Redirecting to:", loginUrl);
+      console.log("Redirecting to Spotify...");
       window.location.href = loginUrl;
     } catch (err) {
       console.error("Login error:", err);
@@ -49,9 +58,9 @@ export default function SpotifyLoginButton() {
   return (
     <div className="flex flex-col items-center space-y-2">
       {error && (
-        <div className="flex items-center space-x-1 text-red-600 dark:text-red-400 text-sm">
-          <AlertCircle className="w-4 h-4" />
-          <span>{error}</span>
+        <div className="flex items-center space-x-1 text-red-600 dark:text-red-400 text-sm max-w-xs text-center">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span className="text-xs">{error}</span>
         </div>
       )}
 
@@ -84,6 +93,10 @@ export default function SpotifyLoginButton() {
           <p>Domain: {spotifyAuth.getCurrentDomain()}</p>
           <p>
             Client ID: {process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID ? "✓" : "✗"}
+          </p>
+          <p>
+            Crypto API:{" "}
+            {typeof window !== "undefined" && window.crypto?.subtle ? "✓" : "✗"}
           </p>
         </div>
       )}
