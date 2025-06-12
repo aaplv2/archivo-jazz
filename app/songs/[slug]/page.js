@@ -1,7 +1,7 @@
 "use client";
 
 import { use } from "react";
-import { useSong } from "@/app/hooks/use-songs";
+import { useSong } from "@/hooks/use-songs";
 import SongPlayer from "@/components/song-player";
 import SafeImage from "@/components/safe-image";
 import { Badge } from "@/components/ui/badge";

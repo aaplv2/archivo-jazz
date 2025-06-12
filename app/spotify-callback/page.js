@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { spotifyAuth } from "@/lib/spotify-auth";
+import { spotifyService } from "@/lib/services/spotify-services";
 import { CheckCircle, XCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -28,19 +28,11 @@ export default function SpotifyCallback() {
       origin: window.location.origin,
     });
 
-    console.log("Callback page loaded:", {
-      url: currentUrl,
-      search: search,
-      code: code ? "Present" : "Missing",
-      error: error || "None",
-      origin: window.location.origin,
-    });
-
     // Process the callback
     const processAuth = async () => {
       try {
         setIsProcessing(true);
-        const authResult = await spotifyAuth.handleCallback();
+        const authResult = await spotifyService.handleCallback();
         setResult(authResult);
 
         if (authResult.success) {

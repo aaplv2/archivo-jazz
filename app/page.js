@@ -1,6 +1,6 @@
 "use client";
 
-import { useSongs } from "./hooks/use-songs";
+import { useSongs } from "../hooks/use-songs";
 import { Music2 } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import LoadingSpinner from "@/components/loading-spinner";

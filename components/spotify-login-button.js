@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { spotifyAuth } from "@/lib/spotify-auth";
+import { spotifyService } from "@/lib/services/spotify-services";
 import { LogOut, Music, AlertCircle } from "lucide-react";
 
 export default function SpotifyLoginButton() {
@@ -12,7 +12,7 @@ export default function SpotifyLoginButton() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setIsLoggedIn(spotifyAuth.isLoggedIn());
+      setIsLoggedIn(spotifyService.isLoggedIn());
     }
   }, []);
 
@@ -30,7 +30,7 @@ export default function SpotifyLoginButton() {
         return;
       }
 
-      const loginUrl = await spotifyAuth.getLoginUrl();
+      const loginUrl = await spotifyService.getLoginUrl();
 
       if (!loginUrl) {
         setError(
@@ -40,7 +40,6 @@ export default function SpotifyLoginButton() {
         return;
       }
 
-      console.log("Redirecting to Spotify...");
       window.location.href = loginUrl;
     } catch (err) {
       console.error("Login error:", err);
@@ -50,9 +49,10 @@ export default function SpotifyLoginButton() {
   };
 
   const handleLogout = () => {
-    spotifyAuth.logout();
+    spotifyService.logout();
     setIsLoggedIn(false);
     setError(null);
+    window.location.reload(); // Reload to reset player state
   };
 
   return (
@@ -85,20 +85,6 @@ export default function SpotifyLoginButton() {
           <Music className="w-4 h-4" />
           <span>{isLoading ? "Connecting..." : "Connect Spotify"}</span>
         </Button>
-      )}
-
-      {/* Debug info in development */}
-      {process.env.NODE_ENV === "development" && (
-        <div className="text-xs text-gray-500 mt-2">
-          <p>Domain: {spotifyAuth.getCurrentDomain()}</p>
-          <p>
-            Client ID: {process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID ? "✓" : "✗"}
-          </p>
-          <p>
-            Crypto API:{" "}
-            {typeof window !== "undefined" && window.crypto?.subtle ? "✓" : "✗"}
-          </p>
-        </div>
       )}
     </div>
   );
