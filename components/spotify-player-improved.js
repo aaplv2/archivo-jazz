@@ -32,12 +32,22 @@ export default function SpotifyPlayerImproved({ song }) {
   const scriptLoaded = useRef(false);
   const intervalRef = useRef(null);
   const sdkReadyHandled = useRef(false);
+  const playerInitialized = useRef(false);
 
   // Check if we have a valid Spotify ID
   const spotifyId = song.spotifyId || extractSpotifyId(song.previewUrl);
   const isLoggedIn = spotifyAuth.isLoggedIn();
 
-  // Load Spotify Web Playback SDK with better error handling
+  // Initialize player when SDK becomes ready
+  useEffect(() => {
+    if (sdkLoaded && isLoggedIn && !playerInitialized.current) {
+      console.log("SDK is ready, initializing player...");
+      playerInitialized.current = true;
+      initializePlayer();
+    }
+  }, [sdkLoaded, isLoggedIn]);
+
+  // Load Spotify Web Playback SDK
   useEffect(() => {
     if (!isLoggedIn || scriptLoaded.current) return;
 
@@ -45,6 +55,8 @@ export default function SpotifyPlayerImproved({ song }) {
       return new Promise((resolve, reject) => {
         // Check if SDK is already loaded
         if (window.Spotify) {
+          console.log("Spotify SDK already available");
+          setSdkLoaded(true);
           resolve();
           return;
         }
@@ -81,7 +93,14 @@ export default function SpotifyPlayerImproved({ song }) {
         setTimeout(() => {
           if (!sdkReadyHandled.current) {
             console.warn("Spotify SDK ready callback timeout");
-            reject(new Error("Spotify SDK ready timeout"));
+            // Try to set SDK as loaded anyway if Spotify object exists
+            if (window.Spotify) {
+              console.log("Spotify object found, setting SDK as loaded");
+              setSdkLoaded(true);
+              resolve();
+            } else {
+              reject(new Error("Spotify SDK ready timeout"));
+            }
           }
         }, 10000); // 10 second timeout
       });
@@ -93,12 +112,7 @@ export default function SpotifyPlayerImproved({ song }) {
         setError(null);
 
         await loadSpotifySDK();
-        console.log("SDK loaded, initializing player...");
-
-        // Small delay to ensure SDK is fully ready
-        setTimeout(() => {
-          initializePlayer();
-        }, 100);
+        console.log("SDK loaded successfully");
 
         // Check Premium status
         await checkPremiumStatus();
@@ -119,7 +133,6 @@ export default function SpotifyPlayerImproved({ song }) {
       if (player) {
         player.disconnect();
       }
-      // Don't remove the global callback as it might be used by other components
     };
   }, [isLoggedIn]);
 
@@ -151,18 +164,31 @@ export default function SpotifyPlayerImproved({ song }) {
 
   // Initialize player when SDK is ready
   const initializePlayer = () => {
-    if (!window.Spotify || !spotifyAuth.isLoggedIn() || !sdkLoaded) {
-      console.log("Cannot initialize player:", {
-        hasSpotify: !!window.Spotify,
-        isLoggedIn: spotifyAuth.isLoggedIn(),
-        sdkLoaded,
-      });
+    console.log("initializePlayer called with:", {
+      hasSpotify: !!window.Spotify,
+      isLoggedIn: spotifyAuth.isLoggedIn(),
+      sdkLoaded,
+      playerInitialized: playerInitialized.current,
+    });
+
+    if (!window.Spotify) {
+      console.error("Spotify SDK not available");
+      setError("Spotify SDK not loaded");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!spotifyAuth.isLoggedIn()) {
+      console.error("User not logged in");
+      setError("Please log in to Spotify");
+      setIsLoading(false);
       return;
     }
 
     const token = spotifyAuth.getToken();
     if (!token) {
       setError("No valid token available");
+      setIsLoading(false);
       return;
     }
 
@@ -234,6 +260,7 @@ export default function SpotifyPlayerImproved({ song }) {
       });
 
       // Connect player
+      console.log("Connecting Spotify player...");
       newPlayer.connect().then((success) => {
         if (success) {
           console.log("Spotify player connected successfully");
@@ -257,19 +284,23 @@ export default function SpotifyPlayerImproved({ song }) {
       }, 1000);
     } catch (err) {
       console.error("Error initializing player:", err);
-      setError("Failed to initialize player");
+      setError(`Failed to initialize player: ${err.message}`);
       setIsLoading(false);
     }
   };
 
   // Play a track
   const playTrack = async () => {
-    if (!isReady || !deviceId || !spotifyId) return;
+    if (!isReady || !deviceId || !spotifyId) {
+      console.log("Cannot play track:", { isReady, deviceId, spotifyId });
+      return;
+    }
 
     setIsLoading(true);
     const token = spotifyAuth.getToken();
 
     try {
+      console.log(`Playing track: ${spotifyId} on device: ${deviceId}`);
       const response = await fetch(
         `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
         {
@@ -285,6 +316,7 @@ export default function SpotifyPlayerImproved({ song }) {
       );
 
       if (response.ok) {
+        console.log("Track play request successful");
         setIsPlaying(true);
         setError(null);
       } else if (response.status === 401) {
@@ -294,6 +326,7 @@ export default function SpotifyPlayerImproved({ song }) {
         setError("Device not found. Please refresh and try again.");
       } else {
         const errorData = await response.json();
+        console.error("Play track error:", errorData);
         setError(errorData.error?.message || "Failed to play track");
       }
     } catch (err) {
@@ -414,14 +447,24 @@ export default function SpotifyPlayerImproved({ song }) {
           )}
 
           {/* Loading State */}
-          {isLoggedIn && isLoading && (
+          {isLoggedIn && (isLoading || !isReady) && !error && (
             <div className="text-center py-4">
               <Loader2 className="w-8 h-8 text-[#1DB954] mx-auto mb-2 animate-spin" />
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {!sdkLoaded
                   ? "Loading Spotify SDK..."
-                  : "Initializing player..."}
+                  : !isReady
+                  ? "Initializing player..."
+                  : "Setting up playback..."}
               </p>
+              {/* Debug info in development */}
+              {process.env.NODE_ENV === "development" && (
+                <div className="text-xs text-gray-500 mt-2">
+                  <p>SDK Loaded: {sdkLoaded ? "✓" : "✗"}</p>
+                  <p>Player Ready: {isReady ? "✓" : "✗"}</p>
+                  <p>Device ID: {deviceId || "None"}</p>
+                </div>
+              )}
             </div>
           )}
 
