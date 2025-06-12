@@ -3,54 +3,69 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { spotifyAuth } from "@/lib/spotify-auth";
-import { Music2, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function SpotifyCallback() {
   const router = useRouter();
   const [status, setStatus] = useState("Processing authentication...");
   const [result, setResult] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(true);
   const [debugInfo, setDebugInfo] = useState(null);
 
   useEffect(() => {
     // Add debug information
     const currentUrl = window.location.href;
-    const hash = window.location.hash;
     const search = window.location.search;
+    const code = new URLSearchParams(search).get("code");
+    const error = new URLSearchParams(search).get("error");
 
     setDebugInfo({
       url: currentUrl,
-      hash: hash,
       search: search,
+      code: code ? "Present" : "Missing",
+      error: error || "None",
       origin: window.location.origin,
     });
 
     console.log("Callback page loaded:", {
       url: currentUrl,
-      hash: hash,
       search: search,
+      code: code ? "Present" : "Missing",
+      error: error || "None",
       origin: window.location.origin,
     });
 
     // Process the callback
-    const authResult = spotifyAuth.handleCallback();
-    setResult(authResult);
+    const processAuth = async () => {
+      try {
+        setIsProcessing(true);
+        const authResult = await spotifyAuth.handleCallback();
+        setResult(authResult);
 
-    if (authResult.success) {
-      setStatus("Authentication successful! Redirecting...");
+        if (authResult.success) {
+          setStatus("Authentication successful! Redirecting...");
 
-      // Redirect back to home page after a short delay
-      setTimeout(() => {
-        router.push("/");
-      }, 2000);
-    } else {
-      setStatus(`Authentication failed: ${authResult.error}`);
+          // Redirect back to home page after a short delay
+          setTimeout(() => {
+            router.push("/");
+          }, 2000);
+        } else {
+          setStatus(`Authentication failed: ${authResult.error}`);
+        }
+      } catch (error) {
+        console.error("Auth processing error:", error);
+        setResult({
+          success: false,
+          error: error.message || "Unknown error occurred",
+        });
+        setStatus(`Authentication error: ${error.message || "Unknown error"}`);
+      } finally {
+        setIsProcessing(false);
+      }
+    };
 
-      // Redirect back to home page after a longer delay
-      setTimeout(() => {
-        router.push("/");
-      }, 5000);
-    }
+    processAuth();
   }, [router]);
 
   const handleRetry = () => {
@@ -61,12 +76,12 @@ export default function SpotifyCallback() {
     <div className="min-h-screen jazz-bg-light dark:jazz-bg-dark flex flex-col items-center justify-center p-4">
       <div className="text-center max-w-md">
         <div className="mb-6">
-          {result?.success ? (
+          {isProcessing ? (
+            <Loader2 className="w-16 h-16 text-[#1DB954] mx-auto mb-4 animate-spin" />
+          ) : result?.success ? (
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          ) : result?.success === false ? (
-            <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           ) : (
-            <Music2 className="w-16 h-16 text-[#1DB954] mx-auto mb-4 animate-pulse" />
+            <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           )}
         </div>
 
@@ -76,7 +91,7 @@ export default function SpotifyCallback() {
 
         <p className="text-gray-600 dark:text-gray-400 mb-6">{status}</p>
 
-        {result?.success === false && (
+        {!isProcessing && result?.success === false && (
           <div className="space-y-4">
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
               <div className="flex items-center space-x-2 text-red-700 dark:text-red-400">
@@ -95,7 +110,7 @@ export default function SpotifyCallback() {
         )}
 
         {/* Debug information in development */}
-        {process.env.NODE_ENV === "development" && debugInfo && (
+        {process.env.NODE_ENV !== "production" && debugInfo && (
           <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-left">
             <h3 className="font-bold mb-2 text-sm">Debug Information:</h3>
             <div className="text-xs space-y-1 text-gray-600 dark:text-gray-400">
@@ -103,10 +118,13 @@ export default function SpotifyCallback() {
                 <strong>URL:</strong> {debugInfo.url}
               </p>
               <p>
-                <strong>Hash:</strong> {debugInfo.hash || "None"}
+                <strong>Search:</strong> {debugInfo.search || "None"}
               </p>
               <p>
-                <strong>Search:</strong> {debugInfo.search || "None"}
+                <strong>Code:</strong> {debugInfo.code}
+              </p>
+              <p>
+                <strong>Error:</strong> {debugInfo.error}
               </p>
               <p>
                 <strong>Origin:</strong> {debugInfo.origin}
