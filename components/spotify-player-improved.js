@@ -29,14 +29,55 @@ export default function SpotifyPlayerImproved({ song }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [sdkLoaded, setSdkLoaded] = useState(false);
+  const [currentTrack, setCurrentTrack] = useState(null);
   const scriptLoaded = useRef(false);
   const intervalRef = useRef(null);
+  const stateUpdateRef = useRef(null);
   const sdkReadyHandled = useRef(false);
   const playerInitialized = useRef(false);
 
   // Check if we have a valid Spotify ID
   const spotifyId = song.spotifyId || extractSpotifyId(song.previewUrl);
   const isLoggedIn = spotifyAuth.isLoggedIn();
+
+  // Cleanup when component unmounts or user navigates away
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (player && isPlaying) {
+        player.pause();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden && player && isPlaying) {
+        player.pause();
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+
+      // Stop playback and cleanup
+      if (player) {
+        if (isPlaying) {
+          player.pause().catch(console.error);
+        }
+        player.disconnect();
+      }
+
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+
+      if (stateUpdateRef.current) {
+        clearInterval(stateUpdateRef.current);
+      }
+    };
+  }, [player, isPlaying]);
 
   // Initialize player when SDK becomes ready
   useEffect(() => {
@@ -79,7 +120,6 @@ export default function SpotifyPlayerImproved({ song }) {
         script.onload = () => {
           console.log("Spotify SDK script loaded");
           scriptLoaded.current = true;
-          // Don't resolve here, wait for onSpotifyWebPlaybackSDKReady
         };
 
         script.onerror = () => {
@@ -93,7 +133,6 @@ export default function SpotifyPlayerImproved({ song }) {
         setTimeout(() => {
           if (!sdkReadyHandled.current) {
             console.warn("Spotify SDK ready callback timeout");
-            // Try to set SDK as loaded anyway if Spotify object exists
             if (window.Spotify) {
               console.log("Spotify object found, setting SDK as loaded");
               setSdkLoaded(true);
@@ -102,7 +141,7 @@ export default function SpotifyPlayerImproved({ song }) {
               reject(new Error("Spotify SDK ready timeout"));
             }
           }
-        }, 10000); // 10 second timeout
+        }, 10000);
       });
     };
 
@@ -126,9 +165,11 @@ export default function SpotifyPlayerImproved({ song }) {
     initializeSpotify();
 
     return () => {
-      // Cleanup
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+      }
+      if (stateUpdateRef.current) {
+        clearInterval(stateUpdateRef.current);
       }
       if (player) {
         player.disconnect();
@@ -153,7 +194,6 @@ export default function SpotifyPlayerImproved({ song }) {
         setIsPremium(data.product === "premium");
         console.log("User subscription:", data.product);
       } else if (response.status === 401) {
-        // Token expired
         spotifyAuth.logout();
         setError("Session expired. Please reconnect to Spotify.");
       }
@@ -232,7 +272,13 @@ export default function SpotifyPlayerImproved({ song }) {
 
       newPlayer.addListener("playback_error", ({ message }) => {
         console.error("Playback error:", message);
-        setError("Playback error occurred");
+        // Don't show error for 404s from cpapi.spotify.com (these are internal Spotify errors)
+        if (
+          !message.includes("cpapi.spotify.com") &&
+          !message.includes("404")
+        ) {
+          setError("Playback error occurred");
+        }
       });
 
       // Ready
@@ -250,13 +296,35 @@ export default function SpotifyPlayerImproved({ song }) {
         setIsReady(false);
       });
 
-      // Player State
+      // Player State Changed - This is crucial for progress tracking
       newPlayer.addListener("player_state_changed", (state) => {
-        if (!state) return;
+        console.log("Player state changed:", state);
 
+        if (!state) {
+          console.log("No state available");
+          setIsPlaying(false);
+          setCurrentTime(0);
+          setDuration(0);
+          setCurrentTrack(null);
+          return;
+        }
+
+        // Update playback state
+        setIsPlaying(!state.paused);
         setCurrentTime(state.position);
         setDuration(state.duration);
-        setIsPlaying(!state.paused);
+
+        // Update current track info
+        if (state.track_window?.current_track) {
+          setCurrentTrack(state.track_window.current_track);
+          console.log("Current track:", state.track_window.current_track.name);
+        }
+
+        console.log("State update:", {
+          paused: state.paused,
+          position: state.position,
+          duration: state.duration,
+        });
       });
 
       // Connect player
@@ -265,23 +333,26 @@ export default function SpotifyPlayerImproved({ song }) {
         if (success) {
           console.log("Spotify player connected successfully");
           setPlayer(newPlayer);
+
+          // Start regular state polling for more accurate progress tracking
+          stateUpdateRef.current = setInterval(async () => {
+            try {
+              const state = await newPlayer.getCurrentState();
+              if (state && !state.paused) {
+                setCurrentTime(state.position);
+                setDuration(state.duration);
+                setIsPlaying(!state.paused);
+              }
+            } catch (error) {
+              // Ignore errors during state polling
+            }
+          }, 1000);
         } else {
           console.error("Failed to connect Spotify player");
           setError("Failed to connect Spotify player");
           setIsLoading(false);
         }
       });
-
-      // Start position tracking
-      intervalRef.current = setInterval(() => {
-        if (newPlayer && isPlaying) {
-          newPlayer.getCurrentState().then((state) => {
-            if (state) {
-              setCurrentTime(state.position);
-            }
-          });
-        }
-      }, 1000);
     } catch (err) {
       console.error("Error initializing player:", err);
       setError(`Failed to initialize player: ${err.message}`);
@@ -317,8 +388,21 @@ export default function SpotifyPlayerImproved({ song }) {
 
       if (response.ok) {
         console.log("Track play request successful");
-        setIsPlaying(true);
         setError(null);
+
+        // Wait a moment then get the current state
+        setTimeout(async () => {
+          try {
+            const state = await player.getCurrentState();
+            if (state) {
+              setCurrentTime(state.position);
+              setDuration(state.duration);
+              setIsPlaying(!state.paused);
+            }
+          } catch (error) {
+            console.log("Could not get initial state:", error);
+          }
+        }, 500);
       } else if (response.status === 401) {
         setError("Session expired. Please reconnect to Spotify.");
         spotifyAuth.logout();
@@ -432,6 +516,12 @@ export default function SpotifyPlayerImproved({ song }) {
             <p className="text-muted-foreground dark:text-gray-400">
               {song.composer}
             </p>
+            {currentTrack && (
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                Now playing: {currentTrack.name} by{" "}
+                {currentTrack.artists[0]?.name}
+              </p>
+            )}
           </div>
 
           {/* Spotify Login */}
