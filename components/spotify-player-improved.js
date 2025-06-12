@@ -31,6 +31,7 @@ export default function SpotifyPlayerImproved({ song }) {
   const [sdkLoaded, setSdkLoaded] = useState(false);
   const scriptLoaded = useRef(false);
   const intervalRef = useRef(null);
+  const sdkReadyHandled = useRef(false);
 
   // Check if we have a valid Spotify ID
   const spotifyId = song.spotifyId || extractSpotifyId(song.previewUrl);
@@ -48,47 +49,62 @@ export default function SpotifyPlayerImproved({ song }) {
           return;
         }
 
+        // Define the callback function BEFORE loading the script
+        window.onSpotifyWebPlaybackSDKReady = () => {
+          console.log("Spotify Web Playback SDK Ready");
+          if (!sdkReadyHandled.current) {
+            sdkReadyHandled.current = true;
+            setSdkLoaded(true);
+            resolve();
+          }
+        };
+
         // Create script element
         const script = document.createElement("script");
         script.src = "https://sdk.scdn.co/spotify-player.js";
         script.async = true;
 
         script.onload = () => {
+          console.log("Spotify SDK script loaded");
           scriptLoaded.current = true;
-          resolve();
+          // Don't resolve here, wait for onSpotifyWebPlaybackSDKReady
         };
 
         script.onerror = () => {
+          console.error("Failed to load Spotify SDK script");
           reject(new Error("Failed to load Spotify SDK"));
         };
 
         document.head.appendChild(script);
+
+        // Fallback timeout
+        setTimeout(() => {
+          if (!sdkReadyHandled.current) {
+            console.warn("Spotify SDK ready callback timeout");
+            reject(new Error("Spotify SDK ready timeout"));
+          }
+        }, 10000); // 10 second timeout
       });
     };
 
     const initializeSpotify = async () => {
       try {
         setIsLoading(true);
+        setError(null);
+
         await loadSpotifySDK();
+        console.log("SDK loaded, initializing player...");
 
-        // Wait for SDK to be ready
-        window.onSpotifyWebPlaybackSDKReady = () => {
-          setSdkLoaded(true);
+        // Small delay to ensure SDK is fully ready
+        setTimeout(() => {
           initializePlayer();
-        };
-
-        // If SDK is already ready
-        if (window.Spotify) {
-          setSdkLoaded(true);
-          initializePlayer();
-        }
+        }, 100);
 
         // Check Premium status
         await checkPremiumStatus();
       } catch (err) {
         console.error("Error loading Spotify SDK:", err);
-        setError("Failed to load Spotify player");
-      } finally {
+        setError(`Failed to load Spotify player: ${err.message}`);
         setIsLoading(false);
       }
     };
@@ -96,12 +112,14 @@ export default function SpotifyPlayerImproved({ song }) {
     initializeSpotify();
 
     return () => {
+      // Cleanup
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
       if (player) {
         player.disconnect();
       }
+      // Don't remove the global callback as it might be used by other components
     };
   }, [isLoggedIn]);
 
@@ -120,6 +138,7 @@ export default function SpotifyPlayerImproved({ song }) {
       if (response.ok) {
         const data = await response.json();
         setIsPremium(data.product === "premium");
+        console.log("User subscription:", data.product);
       } else if (response.status === 401) {
         // Token expired
         spotifyAuth.logout();
@@ -132,12 +151,24 @@ export default function SpotifyPlayerImproved({ song }) {
 
   // Initialize player when SDK is ready
   const initializePlayer = () => {
-    if (!window.Spotify || !spotifyAuth.isLoggedIn() || !sdkLoaded) return;
+    if (!window.Spotify || !spotifyAuth.isLoggedIn() || !sdkLoaded) {
+      console.log("Cannot initialize player:", {
+        hasSpotify: !!window.Spotify,
+        isLoggedIn: spotifyAuth.isLoggedIn(),
+        sdkLoaded,
+      });
+      return;
+    }
 
     const token = spotifyAuth.getToken();
-    if (!token) return;
+    if (!token) {
+      setError("No valid token available");
+      return;
+    }
 
     try {
+      console.log("Creating Spotify Player...");
+
       const newPlayer = new window.Spotify.Player({
         name: "Jazz Classics Web Player",
         getOAuthToken: (cb) => {
@@ -156,18 +187,21 @@ export default function SpotifyPlayerImproved({ song }) {
       newPlayer.addListener("initialization_error", ({ message }) => {
         console.error("Initialization error:", message);
         setError("Failed to initialize Spotify player");
+        setIsLoading(false);
       });
 
       newPlayer.addListener("authentication_error", ({ message }) => {
         console.error("Authentication error:", message);
         setError("Spotify authentication failed");
         spotifyAuth.logout();
+        setIsLoading(false);
       });
 
       newPlayer.addListener("account_error", ({ message }) => {
         console.error("Account error:", message);
         setError("Spotify Premium required for playback");
         setIsPremium(false);
+        setIsLoading(false);
       });
 
       newPlayer.addListener("playback_error", ({ message }) => {
@@ -207,6 +241,7 @@ export default function SpotifyPlayerImproved({ song }) {
         } else {
           console.error("Failed to connect Spotify player");
           setError("Failed to connect Spotify player");
+          setIsLoading(false);
         }
       });
 
@@ -255,6 +290,8 @@ export default function SpotifyPlayerImproved({ song }) {
       } else if (response.status === 401) {
         setError("Session expired. Please reconnect to Spotify.");
         spotifyAuth.logout();
+      } else if (response.status === 404) {
+        setError("Device not found. Please refresh and try again.");
       } else {
         const errorData = await response.json();
         setError(errorData.error?.message || "Failed to play track");
@@ -377,11 +414,13 @@ export default function SpotifyPlayerImproved({ song }) {
           )}
 
           {/* Loading State */}
-          {isLoggedIn && isLoading && !isReady && (
+          {isLoggedIn && isLoading && (
             <div className="text-center py-4">
               <Loader2 className="w-8 h-8 text-[#1DB954] mx-auto mb-2 animate-spin" />
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Loading Spotify player...
+                {!sdkLoaded
+                  ? "Loading Spotify SDK..."
+                  : "Initializing player..."}
               </p>
             </div>
           )}
@@ -430,7 +469,7 @@ export default function SpotifyPlayerImproved({ song }) {
           )}
 
           {/* Player Controls */}
-          {isLoggedIn && isPremium && spotifyId && (
+          {isLoggedIn && isPremium && spotifyId && isReady && (
             <>
               {/* Progress Bar */}
               <div className="space-y-2">
@@ -440,7 +479,7 @@ export default function SpotifyPlayerImproved({ song }) {
                   max={100}
                   step={1}
                   className="w-full"
-                  disabled={!isReady || !duration}
+                  disabled={!duration}
                 />
                 <div className="flex justify-between text-sm text-muted-foreground dark:text-gray-400">
                   <span>{formatTime(currentTime)}</span>
@@ -454,7 +493,7 @@ export default function SpotifyPlayerImproved({ song }) {
                   variant="outline"
                   size="icon"
                   onClick={togglePlay}
-                  disabled={!isReady || isLoading}
+                  disabled={isLoading}
                   className="h-12 w-12 border-[#1DB954] text-[#1DB954] hover:bg-[#1DB954]/10"
                 >
                   {isLoading ? (

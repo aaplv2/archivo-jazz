@@ -22,6 +22,14 @@ export default function SpotifyDebug() {
         typeof window !== "undefined" && window.crypto?.subtle
           ? "Available"
           : "Not Available",
+      spotifySDK:
+        typeof window !== "undefined" && window.Spotify
+          ? "Loaded"
+          : "Not Loaded",
+      sdkCallback:
+        typeof window !== "undefined" && window.onSpotifyWebPlaybackSDKReady
+          ? "Defined"
+          : "Not Defined",
       localStorage:
         typeof window !== "undefined"
           ? {

@@ -53,7 +53,7 @@ const nextConfig = {
       },
     ],
   },
-  // Add CSP headers for production
+  // Add CSP headers for production with proper Spotify SDK support
   async headers() {
     return [
       {
@@ -63,13 +63,14 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.scdn.co https://accounts.spotify.com",
-              "connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://ws.audioscrobbler.com https://musicbrainz.org",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.scdn.co",
+              "connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://ws.audioscrobbler.com https://musicbrainz.org wss://dealer.spotify.com",
               "img-src 'self' data: blob: https: http:",
               "media-src 'self' https: blob:",
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data:",
-              "frame-src 'self' https://accounts.spotify.com",
+              "frame-src 'self' https://accounts.spotify.com https://sdk.scdn.co", // Added sdk.scdn.co
+              "worker-src 'self' blob:",
             ].join("; "),
           },
         ],
