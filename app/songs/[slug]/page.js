@@ -27,6 +27,7 @@ import { notFound } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
 import LoadingSpinner from "@/components/loading-spinner";
 import SpotifyPlayerImproved from "@/components/spotify-player-improved";
+import YouTubePlayer from "@/components/youtube-player";
 
 export default function SongPage({ params }) {
   // Properly unwrap the params Promise
@@ -121,15 +122,9 @@ export default function SongPage({ params }) {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Player Section */}
+            {/* Left Column - Album Art and Player Section */}
             <div className="space-y-6">
-              {song.spotifyId ? (
-                <SpotifyPlayerImproved song={song} />
-              ) : (
-                <SongPlayer song={song} />
-              )}
-
-              {/* Album Art */}
+              {/* Album Art - Moved to the top */}
               <Card className="jazz-card-light dark:jazz-card-dark border-amber-200/50 dark:border-amber-800/30">
                 <CardContent className="p-6">
                   <SafeImage
@@ -141,6 +136,21 @@ export default function SongPage({ params }) {
                   />
                 </CardContent>
               </Card>
+
+              {/* Spotify Player */}
+              {song.spotifyId ? (
+                <SpotifyPlayerImproved song={song} />
+              ) : (
+                <SongPlayer song={song} />
+              )}
+
+              {/* YouTube Player - Added as a backup */}
+              <div className="mt-6">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-amber-100 mb-3">
+                  YouTube Version
+                </h3>
+                <YouTubePlayer song={song} />
+              </div>
             </div>
 
             {/* Song Details */}

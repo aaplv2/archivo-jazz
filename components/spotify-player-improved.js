@@ -20,6 +20,7 @@ import ErrorDisplay from "./spotify/error-display";
 import LoginPrompt from "./spotify/login-prompt";
 import PremiumPrompt from "./spotify/premium-prompt";
 import LoadingState from "./spotify/loading-state";
+import RegionSelector from "./spotify/region-selector";
 
 export default function SpotifyPlayerImproved({ song }) {
   // State
@@ -286,6 +287,13 @@ export default function SpotifyPlayerImproved({ song }) {
         <div className="space-y-4">
           {/* Track Info */}
           <TrackInfo song={song} currentTrack={currentTrack} />
+
+          {/* Region Selector - Added for location control */}
+          {isLoggedIn && (
+            <div className="flex justify-end">
+              <RegionSelector />
+            </div>
+          )}
 
           {/* Login Prompt */}
           {!isLoggedIn && <LoginPrompt />}
