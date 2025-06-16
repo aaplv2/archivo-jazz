@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata = {
   title: "Jazz Classics - Timeless Standards from the Golden Age",
   description:
-    "Explore the greatest jazz standards from the 1920s, 1930s, and 1940s. Listen to timeless classics and learn about the golden age of jazz music.",
+    "Some jazz standards from the 1920s, 1930s, and 1940s. Listen to timeless classics and learn about them.",
 };
 
 export default function RootLayout({ children }) {
