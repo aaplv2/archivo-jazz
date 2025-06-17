@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { spotifyService } from "@/lib/services/spotify-service";
+import { spotifyService } from "@/lib/services/spotify-services";
 
 export function useSpotifyLifecycle() {
   const cleanupRef = useRef(false);
