@@ -7,9 +7,12 @@ import LoadingSpinner from "@/components/loading-spinner";
 import Link from "next/link";
 import SpotifyLoginButton from "@/components/spotify-login-button";
 import SpotifyDebug from "@/components/spotify-debug";
+import { useSpotifyLifecycle } from "@/hooks/use-spotify-lifecycle";
 
 export default function HomePage() {
   const { songs, loading, error } = useSongs();
+
+  const spotifyLifecycle = useSpotifyLifecycle()
 
   if (loading) {
     return (

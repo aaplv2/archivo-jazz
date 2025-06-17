@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { spotifyAuth } from "@/lib/spotify-auth";
+import TokenManager from "./spotify/token-manager";
 
 export default function SpotifyDebug() {
   const [debugInfo, setDebugInfo] = useState(null);
@@ -126,6 +127,12 @@ export default function SpotifyDebug() {
             <pre className="text-xs bg-gray-200 dark:bg-gray-700 p-1 rounded">
               {JSON.stringify(debugInfo.localStorage, null, 2)}
             </pre>
+          </div>
+        )}
+
+        {debugInfo && (
+          <div className="mt-4">
+            <TokenManager />
           </div>
         )}
       </CardContent>

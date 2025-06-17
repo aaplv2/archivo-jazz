@@ -158,6 +158,72 @@ export default function SpotifyPlayerImproved({ song }) {
     initializeSpotify();
   }, [isLoggedIn]);
 
+  // Cleanup effect for when component unmounts or user logs out
+  useEffect(() => {
+    const handleLogout = () => {
+      // Clean up player when user logs out
+      if (playerServiceRef.current) {
+        playerServiceRef.current.cleanup();
+      }
+
+      // Reset all state
+      setIsReady(false);
+      setIsPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+      setError(null);
+      setIsLoading(false);
+      setIsPremium(false);
+      setSdkLoaded(false);
+      setCurrentTrack(null);
+    };
+
+    // Listen for logout events
+    window.addEventListener("spotify-logout", handleLogout);
+
+    return () => {
+      window.removeEventListener("spotify-logout", handleLogout);
+    };
+  }, []);
+
+  // Enhanced cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup intervals
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+
+      // Cleanup player service
+      if (playerServiceRef.current) {
+        playerServiceRef.current.cleanup();
+      }
+    };
+  }, []);
+
+  // Check for stale tokens periodically
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const checkTokenHealth = () => {
+      if (spotifyService.isTokenStale()) {
+        console.log("Token is stale, refreshing...");
+        spotifyService.refreshToken();
+      }
+    };
+
+    // Check immediately
+    checkTokenHealth();
+
+    // Check every 5 minutes
+    const tokenCheckInterval = setInterval(checkTokenHealth, 5 * 60 * 1000);
+
+    return () => {
+      clearInterval(tokenCheckInterval);
+    };
+  }, [isLoggedIn]);
+
   // Start progress tracking
   const startProgressTracking = () => {
     // Clear any existing interval

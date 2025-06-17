@@ -28,11 +28,14 @@ import ThemeToggle from "@/components/theme-toggle";
 import LoadingSpinner from "@/components/loading-spinner";
 import SpotifyPlayerImproved from "@/components/spotify-player-improved";
 import YouTubePlayer from "@/components/youtube-player";
+import { useSpotifyLifecycle } from "@/hooks/use-spotify-lifecycle";
 
 export default function SongPage({ params }) {
   // Properly unwrap the params Promise
   const { slug } = use(params);
   const { song, loading, error } = useSong(slug);
+
+  const spotifyLifecycle = useSpotifyLifecycle();
 
   if (loading) {
     return (
